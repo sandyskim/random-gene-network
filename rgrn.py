@@ -9,75 +9,102 @@ try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
-from scipy.optimize import brentq
-from scipy.optimize import fsolve
 import random
 import sys
 from scipy.integrate import odeint
-from itertools import combinations, permutations, product, islice
+from itertools import product
 from statistics import mean
+import pickle
 import math
 import warnings
 import time
 
-#----------------------------generate random matrix----------------------------#
-""" 
-the user's input will define the following:
-1. number of genes we want to simulate
-2. repressilator OR the number of interactions between the genes
-3. time of simulation in hours 
-"""
-
-genes = int(sys.argv[1])
-graph = np.zeros((genes, genes))
-
-if sys.argv[2] == 'R':
-    interactions = genes
-    for aa in range(genes):
-        graph[aa, (aa+1)%genes] = -1
-else:        
-    interactions = int(sys.argv[2])
-    probability = 0.7
-    rand = random.sample(range(0,(genes*genes)-1), interactions) 
-    for aa in range(0,interactions):
-        graph[rand[aa]//genes, rand[aa]%genes] = np.random.choice([-1, 1], 1, p = [1-probability, probability])
-
-hourtime = int(sys.argv[3])
-#----------------------generate random initial parameters----------------------#
-init = []
-
-for aa in range(genes):
-    rand = 10**random.uniform(-2.0,2.0)
-    init.append(rand)
-
-#----------------------generate random perturbations----------------------#
-unpe = np.random.normal(size=len(init))
-unpe = unpe/(scipy.linalg.norm(unpe))
-unpe = unpe
-
-#----------------------saving parameters of system for reusability----------------------#
+#----------------------------------making directories---------------------------------#
+os.makedirs('output', exist_ok=True)
 os.makedirs('params', exist_ok=True)
-np.savetxt('params/g_{}.txt'.format(interactions),graph, fmt=('%i'))
-np.savetxt('params/init.txt', init, fmt=('%1.2f'))
-np.savetxt('params/perturb.txt', unpe, fmt='%1.5f')
 
-#----------------------------------input setup---------------------------------#
-matrix = graph.tolist()
-size = len(matrix)
-df0 = init
-timecost = 3600*hourtime
-n = 500
-t = np.linspace(0, timecost, n)
-t2 = np.linspace(0, timecost/4, n)
-kmax = 1.2 * 10**(-2)  # mM/s
-kbas = 1.2 * 10**(-8)  # mM/s
-kdec = 1.2 * 10**(-5)  # 1/s
-alph = 2 # Hill coefficient
-kprot = 1 # mM
-df = df0
+#----------------------------------functions---------------------------------#
 
-#-------------------------------define functions-------------------------------#
+
+def initialize(genes, interactions):
+    #----------------------------generate random matrix----------------------------#
+    graph = np.zeros((genes, genes))
+    if interactions == 'R':  # generate N-represillator network
+        interactions = genes
+        for aa in range(genes):
+            graph[aa, (aa+1) % genes] = -1
+    else:  # generate random network with N genes
+        interactions = int(interactions)
+        probability = 0.7
+        rand = random.sample(range(0, (genes*genes)-1), interactions)
+        for aa in range(0, interactions):
+            graph[rand[aa]//genes, rand[aa] %
+                  genes] = np.random.choice([-1, 1], 1, p=[1-probability, probability])
+    #----------------------generate random initial parameters----------------------#
+    init = []
+    for aa in range(genes):
+        rand = 10**random.uniform(-2.0, 2.0)
+        init.append(rand)
+
+    #----------------------generate random perturbations----------------------#
+    unpe = np.random.normal(size=len(init))
+    unpe = unpe/(scipy.linalg.norm(unpe))
+    unpe = unpe/10
+
+    #----------------------saving parameters of system for reusability----------------------#
+    np.savetxt('params/g_{}.txt'.format(interactions), graph, fmt=('%i'))
+    np.savetxt('params/init.txt', init, fmt=('%1.2f'))
+    np.savetxt('params/perturb.txt', unpe, fmt='%1.5f')
+
+    return graph, init, unpe
+
+
+def generate_network(graph, init, hourtime, postfix):
+    #----------------------------------input setup---------------------------------#
+    df = init  # initial values
+    timecost = 3600*hourtime  # time in seconds
+    n = 500  # time step
+    t = np.linspace(0, timecost, n)  # time vector for initial simulation
+    #---------------------------------ODE computing--------------------------------#
+    df = odeint(tree_model, df, t)
+    np.savetxt('output/ft_{}.txt'.format(hourtime), df, fmt='%1.4f')
+
+    return df
+
+
+def perturb(df, hourtime, perturbation):
+    #----------------------perturbing system----------------------#
+    timecost = 3600*hourtime
+    n = 500
+    t2 = np.linspace(0, timecost/4, n)
+    dfo = df[-1]
+    dfo = odeint(tree_model, dfo, t2)
+    dfp = df[-1] + perturbation[::]
+    dfp = odeint(tree_model, dfp, t2)
+
+    #----------------------saving output for reusability----------------------#
+    np.savetxt('output/steady.txt', dfo, fmt='%1.4f')
+    np.savetxt('output/perturbed.txt', dfp, fmt='%1.4f')
+
+    return dfo, dfp
+
+
 def tree_model(df, t):
+    '''
+    this function reads in the initial conditions and solves the ordinary differntial equations.
+    params:
+    :df: (array) initial condition on y.
+    :t: (array) the sequence of time points to solve for y.
+    output:
+    :ode_list: (array) values of y for each desired time in t, with y0 in the first row.
+    '''
+    #----------------------------------parameters---------------------------------#
+    kmax = 1.2 * 10**(-2)  # mM/s
+    kbas = 1.2 * 10**(-8)  # mM/s
+    kdec = 1.2 * 10**(-5)  # 1/s
+    alph = 2  # Hill coefficient
+    kprot = 1  # mM
+    #----------------------------------solving---------------------------------#
     ode_list = []
     for i in range(len(post_exps)):
         text = post_exps[i]
@@ -86,14 +113,15 @@ def tree_model(df, t):
         else:
             stack = []
             for token in text:
-                if token == 'and' or token == 'or': 
+                if token == 'and' or token == 'or':
                     a = stack.pop()
                     if a.isLogic == True:
                         if a.value > 0:
-                            a = (df[a.index]**alph)/(kprot**alph + df[a.index]**alph)
+                            a = (df[a.index]**alph) / \
+                                (kprot**alph + df[a.index]**alph)
                         elif a.value < 0:
                             a = (kprot**alph)/(kprot**alph + df[a.index]**alph)
-                    else: 
+                    else:
                         a = a.value
                     if len(stack) == 0:
                         if token == 'and':
@@ -104,7 +132,8 @@ def tree_model(df, t):
                         b = stack.pop()
                     if b.isLogic == True:
                         if b.value > 0:
-                            b = (df[b.index]**alph)/(kprot**alph + df[b.index]**alph)
+                            b = (df[b.index]**alph) / \
+                                (kprot**alph + df[b.index]**alph)
                         elif b.value < 0:
                             b = (kprot**alph)/(kprot**alph + df[b.index]**alph)
                     else:
@@ -123,17 +152,16 @@ def tree_model(df, t):
         ode_list.append(diffeq)
     return ode_list
 
-tree_matrix = matrix.copy()
-post_exps = []
-display_post_exps = []
 
-class Token:
-    def __init__(self, value, isLogic = False, index = None):
-        self.value = value
-        self.isLogic = isLogic
-        self.index = index
- 
 def expressions(opds, oprs):
+    '''
+    params:
+    :opds: (float) the operands 
+    :oprs: (string) the operators, either 'and' or 'or'.
+    output:
+    :exp: (array) the postfix expression
+    :display_exp: (array) the postfix expression, readable to write in an output .txt
+    '''
     exp = opds[:2]
     opds = opds[2:]
     opd_group = 0
@@ -152,123 +180,159 @@ def expressions(opds, oprs):
     while len(oprs) > 0:
         exp.append(oprs[0])
         oprs = oprs[1:]
-    display_exp = []
-    for i in range(len(exp)):
-        if exp[i] == 'and' or exp[i] == 'or':
-            display_exp.append(exp[i])
-        else:
-            display_exp.append(exp[i].value)
-    return exp, display_exp
+    return exp
 
-for i in range(len(matrix)):
-    if tree_matrix[i].count(0) == size:
-        post_exps.append([])
-    else:
-        idx = 0
-        for j in range(len(tree_matrix[i])):
-            if tree_matrix[i][j] != 0:
-                tree_matrix[i][j] = Token(tree_matrix[i][j], True, idx)
-            idx += 1
-        for x in range(tree_matrix[i].count(0)):
-            tree_matrix[i].remove(0)
-        opds = tree_matrix[i]  
-        random.shuffle(opds)
-        if len(opds) == 1:
+
+def generate_postfix(matrix):
+    tree_matrix = matrix.copy()
+    post_exps = []
+    display_post_exps = []
+    for i in range(len(matrix)):
+        # if the matrix is full of 0s, append an empty array
+        if tree_matrix[i].count(0) == len(matrix):
+            post_exps.append([])
+        else:
+            # replace each value in the tree_matrix with an object that contains more information
+            for j in range(len(tree_matrix[i])):
+                if tree_matrix[i][j] != 0:
+                    tree_matrix[i][j] = Token(tree_matrix[i][j], True, j)
+            # remove all 0s from the matrix
+            for x in range(tree_matrix[i].count(0)):
+                tree_matrix[i].remove(0)
+            # take the operands and mix them
+            opds = tree_matrix[i]
+            random.shuffle(opds)
+            # generate a list of operators, ordered randomly
+            if len(opds) == 1:
                 oprs = np.random.choice(['and', 'or'], len(opds), replace=True)
-        else:
-            oprs = np.random.choice(['and', 'or'], len(opds)-1, replace=True)
-        exps = expressions(opds, oprs)
-        post_exps.append(exps[0])
-        display_post_exps.append(exps[1])
-#---------------------------------ODE computing--------------------------------#
-df = odeint(tree_model, df, t)
+            else:
+                oprs = np.random.choice(
+                    ['and', 'or'], len(opds)-1, replace=True)
+            # generate postfix expressions
+            exps = expressions(opds, oprs)
+            post_exps.append(exps)
+    np.savetxt('output/post_exp.txt', display_post_exps, fmt='%s')
+    pickle.dump(post_exps, open("output/post_exps.p", "wb"))
+    return post_exps
 
-#----------------------saving output for reusability----------------------#
-os.makedirs('output', exist_ok=True)
-np.savetxt('output/ft_{}.txt'.format(hourtime), df, fmt='%1.4f')
-np.savetxt('output/post_exp.txt', display_post_exps, fmt='%s')
 
-#----------------------perturbing the system----------------------#
-dfo = df[-1]
-dfo = odeint(tree_model, dfo, t2)
-dfp = df[-1] + unpe[::]
-dfp = odeint(tree_model, dfp, t2)
+def graph_network(df, hourtime, dfp=None):
+    columns = df.shape[1]
+    if dfp is not None:
+        t2 = np.linspace(0, (hourtime/4)/24, 500)
+        #------------------graphing protein concentration of steady vs perturbed------------------#
+        fig1 = plt.figure()
+        fig1.subplots_adjust(hspace=0.4, wspace=0.4)
+        fig1.set_size_inches(10, 4.8)
+        scatterplot = fig1.add_subplot(211)
+        scatterplotp = fig1.add_subplot(212)
+        colors = ['r', 'y', 'g', 'c', 'b', 'm']
+        lines = ['--', ':', '-.']
+        graphs = []
+        for r in product(lines, colors):
+            graphs.append(r[1] + r[0])
+        for i in range(columns):
+            scatterplot.plot(t2, df[:, i], graphs[i %
+                                                  18], label=str(chr(i+65))+"(t)")
+            scatterplotp.plot(t2, dfp[:, i], graphs[i % 18],
+                              label=str(chr(i+65))+"(t)")
+        scatterplotp.set_xlabel('time (days)', fontsize=14)
+        scatterplot.set_ylabel('protein concentration (' + u"\u03bcM)")
+        scatterplotp.set_ylabel('protein concentration (' + u"\u03bcM)")
+        scatterplot.set_title("Random Gene Regulatory Network of " +
+                              str(columns) + " Genes", fontsize=18)
+        scatterplotp.set_title(
+            "Random Gene Regulatory Network with Perturbation", fontsize=18)
+        if columns < 12:
+            scatterplot.legend(loc=1)
+            scatterplotp.legend(loc=1)
+        scatterplot.set_xlim(0, (hourtime/4)/24)
+        scatterplotp.set_xlim(0, (hourtime/4)/24)
+        fig1.savefig(
+            "output/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
+        plt.close()
 
-#----------------------saving output for reusability----------------------#
-np.savetxt('output/steady.txt', dfo,fmt='%1.4f')
-np.savetxt('output/perturbed.txt', dfp,fmt='%1.4f')
+        #----------------graphing distance between original and perturbed over time---------------#
+        dist = abs(dfp[::] - dfo[::])
+        rows = dist.shape[0]
+        distances = []
+        lle_distances = []
+        for i in range(rows):
+            distances.append(mean(dist[i]))
+            lle_distances.append(np.linalg.norm(dist[i]))
+        fig2 = plt.figure()
+        displot = fig2.add_subplot(111)
+        displot.plot(t2, distances)
+        displot.set_title(
+            "Distance Between Perturbed and Steady States", fontsize=16)
+        displot.set_xlabel('time (days)', fontsize=14)
+        displot.set_ylabel('distance', fontsize=14)
+        fig2.savefig("output/dist.png", dpi=100)
+        np.savetxt('output/dist.txt', dist, fmt='%s')
+        plt.close()
 
-#------------------------------input from terminal-----------------------------#
-t1 = np.linspace(0,hourtime,500)
-t2 = np.linspace(0,(hourtime/4)/24,500)
-columns = df.shape[1]
+        #------------------------calculating largest lyapunov exponent [EXPERIMENTAL! not working]----------------------#
+        # difference = mean(lle_distances)
+        # perturb = np.linalg.norm(unpe)
+        # lle = 1/n * np.log(difference/perturb)
+        # np.savetxt('output/lle.txt', [lle], fmt='%s')
+    else:
+        t = np.linspace(0, hourtime, 500)
+        #------------------------graphing protein concentration-----------------------#
+        fig = plt.figure()
+        scatterplot = fig.add_subplot(111)
+        colors = ['r', 'y', 'g', 'c', 'b', 'm']
+        lines = ['--', ':', '-.']
+        graphs = []
+        for r in product(lines, colors):
+            graphs.append(r[1] + r[0])
+        for i in range(columns):
+            scatterplot.plot(t, df[:, i], graphs[i % 18],
+                             label=str(chr(i+65))+"(t)")
+        plt.xlabel('time (h)', fontsize=15)
+        plt.ylabel('protein product concentration (µM)', fontsize=15)
+        plt.title("Random Gene Regulatory Network of " +
+                  str(columns) + " Genes")
+        if columns < 12:
+            plt.legend(loc=2)
+        plt.xlim(0, hourtime)
+        fig.savefig("output/ODE_{}h.png".format(hourtime))
+        plt.close()
 
-#------------------------graphing protein concentration-----------------------#
-fig = plt.figure()
-scatterplot = fig.add_subplot(111)
-colors = ['r', 'y', 'g', 'c', 'b', 'm']
-lines = ['--', ':', '-.']
-graphs = []
-for r in product(lines, colors): 
-    graphs.append(r[1] + r[0])
-for i in range(columns):
-    scatterplot.plot(t1, df[:,i], graphs[i%18] ,label=str(chr(i+65))+"(t)")
-plt.xlabel('time (h)', fontsize= 15)
-plt.ylabel('protein product concentration (µM)', fontsize=15)
-plt.title("Random Gene Regulatory Network of " + str(columns) + " Genes")
-if columns < 12:
-    plt.legend(loc=2)
-plt.xlim(0,hourtime)
-fig.savefig("output/ODE_{}h.png".format(hourtime))
-plt.close()
 
-#------------------graphing protein concentration of steady vs perturbed------------------#
-fig1 = plt.figure()
-fig1.subplots_adjust(hspace=0.4, wspace=0.4)
-fig1.set_size_inches(10, 4.8)
-scatterplot = fig1.add_subplot(211)
-scatterplotp = fig1.add_subplot(212)
-colors = ['r', 'y', 'g', 'c', 'b', 'm']
-lines = ['--', ':', '-.']
-graphs = []
-for r in product(lines, colors): 
-    graphs.append(r[1] + r[0])
-for i in range(columns):
-    scatterplot.plot(t2, dfo[:,i], graphs[i%18], label=str(chr(i+65))+"(t)")
-    scatterplotp.plot(t2, dfp[:,i], graphs[i%18], label=str(chr(i+65))+"(t)")
-scatterplotp.set_xlabel('time (days)',fontsize=14)
-scatterplot.set_ylabel('protein concentration (' + u"\u03bcM)")
-scatterplotp.set_ylabel('protein concentration (' + u"\u03bcM)")
-scatterplot.set_title("Random Gene Regulatory Network of " + str(columns) + " Genes",fontsize=18)
-scatterplotp.set_title("Random Gene Regulatory Network with Perturbation",fontsize=18)
-if columns < 12:
-    scatterplot.legend(loc=1)
-    scatterplotp.legend(loc=1)
-scatterplot.set_xlim(0,(hourtime/4)/24)
-scatterplotp.set_xlim(0,(hourtime/4)/24)
-fig1.savefig("output/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
-plt.close()
+#----------------------------------token class for postfix---------------------------------#
 
-#----------------graphing distance between original and perturbed over time---------------#
-dist = abs(dfp[::] - dfo[::])
-rows = dist.shape[0]
-distances = []
-lle_distances = []
-for i in range(rows):
-    distances.append(mean(dist[i]))
-    lle_distances.append(np.linalg.norm(dist[i]))
-fig2 = plt.figure()
-displot = fig2.add_subplot(111)
-displot.plot(t2, distances)
-displot.set_title("Distance Between Perturbed and Steady States",fontsize=16)
-displot.set_xlabel('time (days)',fontsize=14)
-displot.set_ylabel('distance',fontsize=14)
-fig2.savefig("output/dist.png", dpi=100)
-np.savetxt('output/dist.txt', dist, fmt='%s')
-plt.close()
 
-#------------------------calculating largest lyapunov exponent----------------------#
-difference = mean(lle_distances)
-perturb = np.linalg.norm(unpe)
-lle = 1/n * np.log(difference/perturb)
-np.savetxt('output/lle.txt', [lle], fmt='%s')
+class Token:
+    '''
+    this class stores information about a given operand:
+    params:
+    :self.value: (int) protein product concentration 
+    :self.isLogic: (bool) checks if value is a logic operand (to distinguish 0 or 1 between logic and protein concentration)
+    :self.index: (int) index of gene
+
+    '''
+
+    def __init__(self, value, isLogic=False, index=None):
+        self.value = value
+        self.isLogic = isLogic
+        self.index = index
+
+
+if __name__ == '__main__':
+    """
+    the user's input will define the following:
+    1. number of genes we want to simulate
+    2. repressilator OR the number of interactions between the genes
+    3. time of simulation in hours
+    """
+    genes = int(sys.argv[1])
+    interactions = sys.argv[2]
+    hourtime = int(sys.argv[3])
+
+    graph, init, perturbation = initialize(genes, interactions)
+    post_exps = generate_postfix(graph.tolist())
+    df = generate_network(graph, init, hourtime, post_exps)
+    graph_network(df, hourtime)
+    dfo, dfp = perturb(df, hourtime, perturbation)
+    graph_network(dfo, hourtime, dfp)
