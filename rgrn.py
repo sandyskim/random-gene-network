@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 import scipy
 import os
+import argparse
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 try:
@@ -20,6 +21,8 @@ import warnings
 import time
 
 #----------------------------------making directories---------------------------------#
+
+
 os.makedirs('output', exist_ok=True)
 os.makedirs('params', exist_ok=True)
 
@@ -326,9 +329,18 @@ if __name__ == '__main__':
     2. repressilator OR the number of interactions between the genes
     3. time of simulation in hours
     """
-    genes = int(sys.argv[1])
-    interactions = sys.argv[2]
-    hourtime = int(sys.argv[3])
+    parser = argparse.ArgumentParser(description='rgrn.py generates and simulates a random gene regulatory network given'
+                                     'the number of genes in the network, number of interactions in the network, and the simulation time in hours.')
+    parser.add_argument('-g', '--numberOfGenes', required=True, dest='genes',
+                        help='number of genes in the network [positive int]')
+    parser.add_argument('-i', '--numberOfInteractions', required=True, dest='interactions',
+                        help='number of interactions in network or repressilator [nonnegative int or \'R\']')
+    parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
+                        help='simulation time in hours [positive int]')
+    args = parser.parse_args()
+    genes = int(args.genes)
+    interactions = args.interactions
+    hourtime = int(args.hourtime)
 
     graph, init, perturbation = initialize(genes, interactions)
     post_exps = generate_postfix(graph.tolist())

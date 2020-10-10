@@ -1,10 +1,13 @@
 import rgrn
 import os
 import sys
+import argparse
 import numpy as np
 from scipy.integrate import odeint
 import pickle
 #----------------------------------making directories---------------------------------#
+
+
 os.makedirs('output', exist_ok=True)
 os.makedirs('params', exist_ok=True)
 
@@ -111,8 +114,16 @@ if __name__ == '__main__':
     1. filename of matrix (without .txt)
     2. time of simulation in hours
     """
-    filename = sys.argv[1]
-    hourtime = int(sys.argv[2])
+    parser = argparse.ArgumentParser(description='load_rgrn.py simulates a previously generated random gene regulatory network given'
+                                     'the gene network file without the .txt extension and the simulation time')
+    parser.add_argument('-f', '--filename', required=True, dest='filename',
+                        help='name of matrix .txt file without \'.txt\' extension')
+    parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
+                        help='simulation time in hours [positive int]')
+    args = parser.parse_args()
+    filename = args.filename
+    hourtime = int(args.hourtime)
+
     graph, init, perturbation, post_exps = load_network(filename, hourtime)
     df = generate_network(graph, init, hourtime, post_exps)
     rgrn.graph_network(df, hourtime)

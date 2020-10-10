@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+import argparse
 import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -77,10 +78,19 @@ if __name__ == '__main__':
     2. PC we want to apply taken's
     3. delay in seconds
     """
-
-    hourtime = int(sys.argv[1])
-    PC = int(sys.argv[2])
-    delay = int(sys.argv[3])
+    parser = argparse.ArgumentParser(description='takens.py takes high-dimensional time series data generated and reduces the dimensions using PCA'
+                                     'and embeds a given principal components using the Takens\'s embedding given the time of the simulation in hours,'
+                                     'the principal component to be embedded, and the time delay for the embedding.')
+    parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
+                        help='hourtime of the simulation we want to embed [positive int]')
+    parser.add_argument('-p', '--principalComponent', required=True, dest='principalcomponent',
+                        help='principal component we want to apply the embedding [1, 2, or 3]')
+    parser.add_argument('-d', '--delay', required=True, dest='delay',
+                        help='delay [positive int]')
+    args = parser.parse_args()
+    hourtime = int(args.hourtime)
+    PC = int(args.principalcomponent)
+    delay = int(args.delay)
 
     run_pca(2, hourtime)
     data = run_pca(3, hourtime)
