@@ -20,7 +20,7 @@ def load_network(filename, hourtime):
                           '.txt', delimiter=" ")).astype(int)).tolist()
     init = np.loadtxt('params/init.txt', delimiter=" ")
     unpe = np.loadtxt("params/perturb.txt", delimiter=" ")
-    post_exps = pickle.load(open("output/post_exps.p", "rb"))
+    post_exps = pickle.load(open("params/post_exps.p", "rb"))
     return matrix, init, unpe, post_exps
 
 

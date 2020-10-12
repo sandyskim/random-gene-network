@@ -36,7 +36,7 @@ def initialize(genes, interactions):
         interactions = genes
         for aa in range(genes):
             graph[aa, (aa+1) % genes] = -1
-    if interactions == 'C':  # generated connected network with 10% edge density
+    elif interactions == 'C':  # generated connected network with 10% edge density
         interactions = int(genes**2/20)
         probability = 0.7
         rand = random.sample(range(0, (genes*genes)-1), interactions)
@@ -222,8 +222,8 @@ def generate_postfix(matrix):
             exps = expressions(opds, oprs)
             post_exps.append(exps)
     # this .txt is EMPTY, need to figure out how to do index [and/or] index ...
-    np.savetxt('output/post_exp.txt', display_post_exps, fmt='%s')
-    pickle.dump(post_exps, open("output/post_exps.p", "wb"))
+    np.savetxt('params/post_exp.txt', display_post_exps, fmt='%s')
+    pickle.dump(post_exps, open("params/post_exps.p", "wb"))
     return post_exps
 
 
@@ -347,9 +347,9 @@ if __name__ == '__main__':
                         help='simulation time in hours [positive int]')
     args = parser.parse_args()
     genes = int(args.genes)
-    interactions = args.interactions
+    interactions = str(args.interactions)
     hourtime = int(args.hourtime)
-
+    print(interactions)
     graph, init, perturbation = initialize(genes, interactions)
     post_exps = generate_postfix(graph.tolist())
     df = generate_network(graph, init, hourtime, post_exps)
