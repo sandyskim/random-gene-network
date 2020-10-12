@@ -47,11 +47,11 @@ def run_pca(pca_dim, hourtime):
     ax.set_xlabel('PC 1', fontsize=15)
     ax.set_ylabel('PC 2', fontsize=15)
     if pca_dim == 2:
-        ax.set_title('2 component PCA', fontsize=20)
+        ax.set_title('2 component PCA', fontsize=16)
         ax.scatter(x_pca[:, 0], x_pca[:, 1], alpha=0.2)
     if pca_dim == 3:
         ax.set_zlabel('PC 3', fontsize=15)
-        ax.set_title('3 component PCA', fontsize=20)
+        ax.set_title('3 component PCA', fontsize=16)
         ax.scatter(x_pca[:, 0], x_pca[:, 1], x_pca[:, 2], alpha=0.2)
     fig.savefig("output/graphs/pca_{}dim.png".format(pca_dim))
     plt.close()
@@ -103,9 +103,9 @@ if __name__ == '__main__':
 
     fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(15, 14))
     ax[0].plot(t, data)
-    ax[0].set_title('Time Series with delay = {}'.format(delay))
+    ax[0].set_title('Time Series with delay = {}'.format(delay), fontsize=16)
     ax[1].plot(embedded_data[0, :], embedded_data[1, :])
-    ax[1].set_title('Takens Embedding Time Series')
+    ax[1].set_title('Takens Embedding Time Series', fontsize=16)
     plt.savefig('output/graphs/takens2d.png')
     plt.clf()
     plt.close()

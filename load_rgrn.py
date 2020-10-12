@@ -144,9 +144,9 @@ def graph_network(df, hourtime, dfp=None):
         scatterplot.set_ylabel('protein concentration (' + u"\u03bcM)")
         scatterplotp.set_ylabel('protein concentration (' + u"\u03bcM)")
         scatterplot.set_title("Random Gene Regulatory Network of " +
-                              str(columns) + " Genes", fontsize=18)
+                              str(columns) + " Genes", fontsize=16)
         scatterplotp.set_title(
-            "Random Gene Regulatory Network with Perturbation", fontsize=18)
+            "Random Gene Regulatory Network with Perturbation", fontsize=16)
         if columns < 12:
             scatterplot.legend(loc=1)
             scatterplotp.legend(loc=1)
@@ -171,8 +171,10 @@ def graph_network(df, hourtime, dfp=None):
             "Distance Between Perturbed and Steady States", fontsize=16)
         displot.set_xlabel('time (days)', fontsize=14)
         displot.set_ylabel('distance', fontsize=14)
-        fig2.savefig("output/graphs/dist.png", dpi=100)
-        np.savetxt('output/dist.txt', dist, fmt='%s')
+        fig2.savefig(
+            "output/graphs/dist_after{}h.png".format(int(hourtime/2)), dpi=100)
+        np.savetxt(
+            'output/dist_after{}h.txt'.format(int(hourtime/2)), dist, fmt='%s')
         plt.close()
 
         #------------------------calculating largest lyapunov exponent [EXPERIMENTAL! not working]----------------------#
@@ -196,7 +198,7 @@ def graph_network(df, hourtime, dfp=None):
         plt.xlabel('time (h)', fontsize=15)
         plt.ylabel('protein product concentration (µM)', fontsize=15)
         plt.title("Random Gene Regulatory Network of " +
-                  str(columns) + " Genes")
+                  str(columns) + " Genes", fontsize=16)
         if columns < 12:
             plt.legend(loc=2)
         plt.xlim(0, hourtime)
