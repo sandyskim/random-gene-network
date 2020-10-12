@@ -5,7 +5,6 @@ import scipy
 import os
 import argparse
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 try:
     from StringIO import StringIO
 except ImportError:
@@ -23,7 +22,7 @@ import time
 #----------------------------------making directories---------------------------------#
 
 
-os.makedirs('output', exist_ok=True)
+os.makedirs('output/graphs', exist_ok=True)
 os.makedirs('params', exist_ok=True)
 
 #----------------------------------functions---------------------------------#
@@ -260,7 +259,7 @@ def graph_network(df, hourtime, dfp=None):
         scatterplot.set_xlim(0, (hourtime/4)/24)
         scatterplotp.set_xlim(0, (hourtime/4)/24)
         fig1.savefig(
-            "output/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
+            "output/graphs/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
         plt.close()
 
         #----------------graphing distance between original and perturbed over time---------------#
@@ -278,7 +277,7 @@ def graph_network(df, hourtime, dfp=None):
             "Distance Between Perturbed and Steady States", fontsize=16)
         displot.set_xlabel('time (days)', fontsize=14)
         displot.set_ylabel('distance', fontsize=14)
-        fig2.savefig("output/dist.png", dpi=100)
+        fig2.savefig("output/graphs/dist.png", dpi=100)
         np.savetxt('output/dist.txt', dist, fmt='%s')
         plt.close()
 
@@ -307,7 +306,7 @@ def graph_network(df, hourtime, dfp=None):
         if columns < 12:
             plt.legend(loc=2)
         plt.xlim(0, hourtime)
-        fig.savefig("output/ODE_{}h.png".format(hourtime))
+        fig.savefig("output/graphs/ODE_{}h.png".format(hourtime))
         plt.close()
 
 
@@ -349,7 +348,6 @@ if __name__ == '__main__':
     genes = int(args.genes)
     interactions = str(args.interactions)
     hourtime = int(args.hourtime)
-    print(interactions)
     graph, init, perturbation = initialize(genes, interactions)
     post_exps = generate_postfix(graph.tolist())
     df = generate_network(graph, init, hourtime, post_exps)

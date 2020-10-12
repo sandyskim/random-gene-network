@@ -53,7 +53,7 @@ def run_pca(pca_dim, hourtime):
         ax.set_zlabel('PC 3', fontsize=15)
         ax.set_title('3 component PCA', fontsize=20)
         ax.scatter(x_pca[:, 0], x_pca[:, 1], x_pca[:, 2], alpha=0.2)
-    fig.savefig("output/pca_{}dim.png".format(pca_dim))
+    fig.savefig("output/graphs/pca_{}dim.png".format(pca_dim))
     plt.close()
 
     return principal_data
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     ax[0].set_title('Time Series with delay = {}'.format(delay))
     ax[1].plot(embedded_data[0, :], embedded_data[1, :])
     ax[1].set_title('Takens Embedding Time Series')
-    plt.savefig('output/takens2d.png')
+    plt.savefig('output/graphs/takens2d.png')
     plt.clf()
     plt.close()
 
@@ -115,5 +115,5 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(111, projection='3d')
     ax1.plot(embedded_data[0, :], embedded_data[1, :], embedded_data[2, :])
     ax1.set_title('3D Takens Embedding on 3D PCA')
-    plt.savefig('output/takens3d.png')
+    plt.savefig('output/graphs/takens3d.png')
     plt.close()
