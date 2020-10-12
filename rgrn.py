@@ -36,6 +36,13 @@ def initialize(genes, interactions):
         interactions = genes
         for aa in range(genes):
             graph[aa, (aa+1) % genes] = -1
+    if interactions == 'C':  # generated connected network with 10% edge density
+        interactions = int(genes**2/20)
+        probability = 0.7
+        rand = random.sample(range(0, (genes*genes)-1), interactions)
+        for aa in range(0, interactions):
+            graph[rand[aa]//genes, rand[aa] %
+                  genes] = np.random.choice([-1, 1], 1, p=[1-probability, probability])
     else:  # generate random network with N genes
         interactions = int(interactions)
         probability = 0.7
@@ -159,7 +166,7 @@ def tree_model(df, t):
 def expressions(opds, oprs):
     '''
     params:
-    :opds: (float) the operands 
+    :opds: (float) the operands
     :oprs: (string) the operators, either 'and' or 'or'.
     output:
     :exp: (array) the postfix expression
@@ -214,6 +221,7 @@ def generate_postfix(matrix):
             # generate postfix expressions
             exps = expressions(opds, oprs)
             post_exps.append(exps)
+    # this .txt is EMPTY, need to figure out how to do index [and/or] index ...
     np.savetxt('output/post_exp.txt', display_post_exps, fmt='%s')
     pickle.dump(post_exps, open("output/post_exps.p", "wb"))
     return post_exps
@@ -310,7 +318,7 @@ class Token:
     '''
     this class stores information about a given operand:
     params:
-    :self.value: (int) protein product concentration 
+    :self.value: (int) protein product concentration
     :self.isLogic: (bool) checks if value is a logic operand (to distinguish 0 or 1 between logic and protein concentration)
     :self.index: (int) index of gene
 
@@ -330,11 +338,11 @@ if __name__ == '__main__':
     3. time of simulation in hours
     """
     parser = argparse.ArgumentParser(description='rgrn.py generates and simulates a random gene regulatory network given'
-                                     'the number of genes in the network, number of interactions in the network, and the simulation time in hours.')
+                                     'the number of genes in the network, number of interactions in or characteristic of the network, and the simulation time in hours.')
     parser.add_argument('-g', '--numberOfGenes', required=True, dest='genes',
                         help='number of genes in the network [positive int]')
     parser.add_argument('-i', '--numberOfInteractions', required=True, dest='interactions',
-                        help='number of interactions in network or repressilator [nonnegative int or \'R\']')
+                        help='number of interactions in network or connected or repressilator [nonnegative int, \'C\', or \'R\']')
     parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
                         help='simulation time in hours [positive int]')
     args = parser.parse_args()
