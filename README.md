@@ -63,14 +63,14 @@ $ python takens.py -f [file name of solution you want to embed, without the file
 _for example:_
 
 ```bash
-$ python takens.py -t 'solution_genes_3_interactions_R_hours_8760_seed_2' -e 3 -t 1
+$ python takens.py -f 'solution_genes_3_interactions_R_hours_8760_seed_2' -e 3 -d 1
 ```
 
 **(3.)** to load a previously generated network with its initial conditions and perturbations and run it for another amount of time:
 **_note:_** this is not included in the snakemake work flow and therefore, can only be done manually as it is. feel free to add it to "Snakefile" if you would like
 
 ```bash
-$ python load_rgrn.py -f [file name of matrix, without the file extension] -t [nsimulation time (hours) of rerun]
+$ python load_rgrn.py -f [file name of matrix, without the file extension] -t [simulation time (hours) of rerun]
 ```
 
 _for example:_
