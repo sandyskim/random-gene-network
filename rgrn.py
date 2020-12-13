@@ -22,7 +22,8 @@ import time
 #----------------------------------making directories---------------------------------#
 
 
-os.makedirs('output/graphs', exist_ok=True)
+os.makedirs('data', exist_ok=True)
+os.makedirs('graphs', exist_ok=True)
 os.makedirs('params', exist_ok=True)
 
 #----------------------------------functions---------------------------------#
@@ -61,9 +62,9 @@ def initialize(genes, interactions):
     unpe = unpe/10
 
     #----------------------saving parameters of system for reusability----------------------#
-    np.savetxt('params/g_{}.txt'.format(interactions), graph, fmt=('%i'))
-    np.savetxt('params/init.txt', init, fmt=('%1.2f'))
-    np.savetxt('params/perturb.txt', unpe, fmt='%1.5f')
+    np.savetxt('params/matrix_{}.txt'.format(filename), graph, fmt=('%i'))
+    np.savetxt('params/init_{}.txt'.format(filename), init, fmt=('%1.2f'))
+    np.savetxt('params/perturb_{}.txt'.format(filename), unpe, fmt='%1.5f')
 
     return graph, init, unpe
 
@@ -76,7 +77,7 @@ def generate_network(graph, init, hourtime, postfix):
     t = np.linspace(0, timecost, n)  # time vector for initial simulation
     #---------------------------------ODE computing--------------------------------#
     df = odeint(tree_model, df, t)
-    np.savetxt('output/ft_{}.txt'.format(hourtime), df, fmt='%1.4f')
+    np.savetxt('data/solution_{}.txt'.format(filename), df, fmt='%1.4f')
 
     return df
 
@@ -92,8 +93,8 @@ def perturb(df, hourtime, perturbation):
     dfp = odeint(tree_model, dfp, t2)
 
     #----------------------saving output for reusability----------------------#
-    np.savetxt('output/steady.txt', dfo, fmt='%1.4f')
-    np.savetxt('output/perturbed.txt', dfp, fmt='%1.4f')
+    np.savetxt('data/steady_{}.txt'.format(filename), dfo, fmt='%1.4f')
+    np.savetxt('data/perturbed_{}.txt'.format(filename), dfp, fmt='%1.4f')
 
     return dfo, dfp
 
@@ -221,8 +222,8 @@ def generate_postfix(matrix):
             exps = expressions(opds, oprs)
             post_exps.append(exps)
     # this .txt is EMPTY, need to figure out how to do index [and/or] index ...
-    np.savetxt('params/post_exp.txt', display_post_exps, fmt='%s')
-    pickle.dump(post_exps, open("params/post_exps.p", "wb"))
+    # np.savetxt('params/post_exp.txt', display_post_exps, fmt='%s')
+    pickle.dump(post_exps, open("params/postexps_{}.p".format(filename), "wb"))
     return post_exps
 
 
@@ -259,7 +260,7 @@ def graph_network(df, hourtime, dfp=None):
         scatterplot.set_xlim(0, (hourtime/4)/24)
         scatterplotp.set_xlim(0, (hourtime/4)/24)
         fig1.savefig(
-            "output/graphs/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
+            "graphs/peturbtimeseries_after_{}h_{}.png".format(int(hourtime/2), filename), dpi=100)
         plt.close()
 
         #----------------graphing distance between original and perturbed over time---------------#
@@ -278,9 +279,9 @@ def graph_network(df, hourtime, dfp=None):
         displot.set_xlabel('time (days)', fontsize=14)
         displot.set_ylabel('distance', fontsize=14)
         fig2.savefig(
-            "output/graphs/dist_after{}h.png".format(int(hourtime/2)), dpi=100)
+            "graphs/distafter_{}h_{}.png".format(int(hourtime/2), filename), dpi=100)
         np.savetxt(
-            'output/dist_after{}h.txt'.format(int(hourtime/2)), dist, fmt='%s')
+            'data/distafter_{}h_{}.txt'.format(int(hourtime/2), filename), dist, fmt='%s')
         plt.close()
 
         #------------------------calculating largest lyapunov exponent [EXPERIMENTAL! not working]----------------------#
@@ -308,7 +309,7 @@ def graph_network(df, hourtime, dfp=None):
         if columns < 12:
             plt.legend(loc=2)
         plt.xlim(0, hourtime)
-        fig.savefig("output/graphs/ODE_{}h.png".format(hourtime))
+        fig.savefig("graphs/timeseries_{}.png".format(filename))
         plt.close()
 
 
@@ -346,10 +347,16 @@ if __name__ == '__main__':
                         help='number of interactions in network or connected or repressilator [nonnegative int, \'C\', or \'R\']')
     parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
                         help='simulation time in hours [positive int]')
+    parser.add_argument('-s', '--seed', required=True, dest='seed',
+                        help='seed for random number generator [positive int]')
     args = parser.parse_args()
     genes = int(args.genes)
     interactions = str(args.interactions)
     hourtime = int(args.hourtime)
+    seed = int(args.seed)
+    random.seed(seed)
+    filename = 'genes_{}_interactions_{}_hours_{}_seed_{}'.format(genes, interactions, hourtime, seed)
+
     graph, init, perturbation = initialize(genes, interactions)
     post_exps = generate_postfix(graph.tolist())
     df = generate_network(graph, init, hourtime, post_exps)

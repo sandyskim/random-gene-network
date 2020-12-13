@@ -8,15 +8,15 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.metrics.cluster import normalized_mutual_info_score
+import re
 import sys
 
 #----------------------------functions----------------------------#
 
 
-def run_pca(pca_dim, hourtime):
+def run_pca(pca_dim, filename):
     #----------------------------embed data using PCA----------------------------#
-    data = np.loadtxt("output/ft_{}.txt".format(hourtime), delimiter=" ")
+    data = np.loadtxt("data/solution_{}.txt".format(filename), delimiter=" ")
     data = pd.DataFrame(data)
     data = data[0:500]
 
@@ -35,7 +35,8 @@ def run_pca(pca_dim, hourtime):
         x_pca = pca.fit_transform(x)
         principal_data = pd.DataFrame(
             data=x_pca, columns=['PC 1', 'PC 2', 'PC 3'])
-    np.savetxt("output/principal_data_pca{}dim.txt".format(pca_dim),
+    
+    np.savetxt("data/pca_{}dim_{}.txt".format(pca_dim, filename),
                principal_data, fmt='%1.4f')
 
     fig = plt.figure(figsize=(8, 8))
@@ -53,7 +54,7 @@ def run_pca(pca_dim, hourtime):
         ax.set_zlabel('PC 3', fontsize=15)
         ax.set_title('3 component PCA', fontsize=16)
         ax.scatter(x_pca[:, 0], x_pca[:, 1], x_pca[:, 2], alpha=0.2)
-    fig.savefig("output/graphs/pca_{}dim.png".format(pca_dim))
+    fig.savefig("graphs/pca_{}dim_{}.png".format(pca_dim, filename))
     plt.close()
 
     return principal_data
@@ -79,34 +80,36 @@ if __name__ == '__main__':
     3. delay in seconds
     """
     parser = argparse.ArgumentParser(description='takens.py takes high-dimensional time series data generated and reduces the dimensions using PCA'
-                                     'and embeds a given principal components using the Takens\'s embedding given the time of the simulation in hours,'
-                                     'the principal component to be embedded, and the time delay for the embedding.')
-    parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
-                        help='hourtime of the simulation we want to embed [positive int]')
-    parser.add_argument('-p', '--principalComponent', required=True, dest='principalcomponent',
+                                     ' and embeds a given principal components using the Takens embedding given the time of the simulation in hours,'
+                                     ' the principal component to be embedded, and the time delay for the embedding.')
+    parser.add_argument('-f', '--filename', required=True, dest='filename',
+                        help='file name of the solution we want to embed, without file extension [string]')
+    parser.add_argument('-e', '--embedPrincipalComponent', required=True, dest='principalcomponent',
                         help='principal component we want to apply the embedding [1, 2, or 3]')
     parser.add_argument('-d', '--delay', required=True, dest='delay',
                         help='delay [positive int]')
     args = parser.parse_args()
-    hourtime = int(args.hourtime)
+    filename = str(args.filename).replace('solution_', '')
     PC = int(args.principalcomponent)
     delay = int(args.delay)
+    new_filename = filename + '_embedpc_{}_delaytau_{}'.format(PC, delay)
 
-    run_pca(2, hourtime)
-    data = run_pca(3, hourtime)
+    hourtime = int(re.findall('hours_' + r'([\d]+)', filename)[0].replace('hours_', ''))
+    run_pca(2, filename)
+    data = run_pca(3, filename)
     n = len(data)
     data = data['PC {}'.format(PC)]
     t = np.linspace(0, hourtime, n)
 
     embedded_data = takens_embedding(data, delay, PC-1)
-    np.savetxt("output/takens_data.txt", embedded_data, fmt='%1.4f')
+    np.savetxt("data/takens_data.txt", embedded_data, fmt='%1.4f')
 
     fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(15, 14))
     ax[0].plot(t, data)
     ax[0].set_title('Time Series with delay = {}'.format(delay), fontsize=16)
     ax[1].plot(embedded_data[0, :], embedded_data[1, :])
     ax[1].set_title('Takens Embedding Time Series', fontsize=16)
-    plt.savefig('output/graphs/takens2d.png')
+    plt.savefig('graphs/takens2d_{}.png'.format(new_filename))
     plt.clf()
     plt.close()
 
@@ -115,5 +118,5 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(111, projection='3d')
     ax1.plot(embedded_data[0, :], embedded_data[1, :], embedded_data[2, :])
     ax1.set_title('3D Takens Embedding on 3D PCA')
-    plt.savefig('output/graphs/takens3d.png')
+    plt.savefig('graphs/takens3d_{}.png'.format(new_filename))
     plt.close()

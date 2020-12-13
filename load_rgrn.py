@@ -7,22 +7,25 @@ import matplotlib.pyplot as plt
 from itertools import product
 from statistics import mean
 import pickle
+import re
+import random
 #----------------------------------making directories---------------------------------#
 
 
-os.makedirs('output/graphs', exist_ok=True)
+os.makedirs('data', exist_ok=True)
+os.makedirs('graphs', exist_ok=True)
 os.makedirs('params', exist_ok=True)
 
 #----------------------------------functions---------------------------------#
 
 
-def load_network(filename, hourtime):
-    filename = filename
-    matrix = ((np.loadtxt("params/" + filename +
+def load_network(matrix, hourtime):
+    matrix = matrix
+    matrix = ((np.loadtxt("params/matrix_" + matrix +
                           '.txt', delimiter=" ")).astype(int)).tolist()
-    init = np.loadtxt('params/init.txt', delimiter=" ")
-    unpe = np.loadtxt("params/perturb.txt", delimiter=" ")
-    post_exps = pickle.load(open("params/post_exps.p", "rb"))
+    init = np.loadtxt('params/init_{}.txt'.format(filename), delimiter=" ")
+    unpe = np.loadtxt('params/perturb_{}.txt'.format(filename), delimiter=" ")
+    post_exps = pickle.load(open("params/postexps_{}.p".format(filename), "rb"))
     return matrix, init, unpe, post_exps
 
 
@@ -34,7 +37,7 @@ def generate_network(graph, init, hourtime, postfix):
     t = np.linspace(0, timecost, n)  # time vector for initial simulation
     #---------------------------------ODE computing--------------------------------#
     df = odeint(tree_model, df, t)
-    np.savetxt('output/ft_{}.txt'.format(hourtime), df, fmt='%1.4f')
+    np.savetxt('data/solution_{}.txt'.format(new_filename), df, fmt='%1.4f')
 
     return df
 
@@ -50,8 +53,8 @@ def perturb(df, hourtime, perturbation):
     dfp = odeint(tree_model, dfp, t2)
 
     #----------------------saving output for reusability----------------------#
-    np.savetxt('output/steady.txt', dfo, fmt='%1.4f')
-    np.savetxt('output/perturbed.txt', dfp, fmt='%1.4f')
+    np.savetxt('data/steady_{}.txt'.format(new_filename), dfo, fmt='%1.4f')
+    np.savetxt('data/perturbed_{}.txt'.format(new_filename), dfp, fmt='%1.4f')
 
     return dfo, dfp
 
@@ -153,7 +156,7 @@ def graph_network(df, hourtime, dfp=None):
         scatterplot.set_xlim(0, (hourtime/4)/24)
         scatterplotp.set_xlim(0, (hourtime/4)/24)
         fig1.savefig(
-            "output/graphs/distODE_after{}h.png".format(int(hourtime/2)), dpi=100)
+            "graphs/peturbtimeseries_after_{}h_{}.png".format(int(hourtime/2), new_filename), dpi=100)
         plt.close()
 
         #----------------graphing distance between original and perturbed over time---------------#
@@ -172,9 +175,9 @@ def graph_network(df, hourtime, dfp=None):
         displot.set_xlabel('time (days)', fontsize=14)
         displot.set_ylabel('distance', fontsize=14)
         fig2.savefig(
-            "output/graphs/dist_after{}h.png".format(int(hourtime/2)), dpi=100)
+            "graphs/distafter_{}h_{}.png".format(int(hourtime/2), new_filename), dpi=100)
         np.savetxt(
-            'output/dist_after{}h.txt'.format(int(hourtime/2)), dist, fmt='%s')
+            'data/distafter_{}h_{}.txt'.format(int(hourtime/2), new_filename), dist, fmt='%s')
         plt.close()
 
         #------------------------calculating largest lyapunov exponent [EXPERIMENTAL! not working]----------------------#
@@ -202,7 +205,7 @@ def graph_network(df, hourtime, dfp=None):
         if columns < 12:
             plt.legend(loc=2)
         plt.xlim(0, hourtime)
-        fig.savefig("output/graphs/ODE_{}h.png".format(hourtime))
+        fig.savefig("graphs/timeseries_{}.png".format(new_filename))
         plt.close()
 
 
@@ -220,14 +223,18 @@ if __name__ == '__main__':
     2. time of simulation in hours
     """
     parser = argparse.ArgumentParser(description='load_rgrn.py simulates a previously generated random gene regulatory network given'
-                                     'the gene network file without the .txt extension and the simulation time')
+                                     'the gene network matrix file and the simulation time of rerun')
     parser.add_argument('-f', '--filename', required=True, dest='filename',
-                        help='name of matrix .txt file without \'.txt\' extension')
+                        help='file name of matrix, without file extension [string]')
     parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
-                        help='simulation time in hours [positive int]')
+                        help='simulation time of rerun in hours [positive int]')
     args = parser.parse_args()
-    filename = args.filename
+    matrix = str(args.filename)
     hourtime = int(args.hourtime)
+    filename = matrix.replace('matrix_', '')
+    new_filename = re.sub('hours_' + r'([\d]+)', 'hours_{}'.format(hourtime), filename)
+    seed = int(re.findall('seed_' + r'([\d]+)', filename)[0].replace('seed_', ''))
+    random.seed(seed)
 
     graph, init, perturbation, post_exps = load_network(filename, hourtime)
     df = generate_network(graph, init, hourtime, post_exps)
