@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from itertools import product
 from statistics import mean
 import pickle
-import re
 import random
 #----------------------------------making directories---------------------------------#
 
@@ -224,16 +223,26 @@ if __name__ == '__main__':
     """
     parser = argparse.ArgumentParser(description='load_rgrn.py simulates a previously generated random gene regulatory network given'
                                      'the gene network matrix file and the simulation time of rerun')
-    parser.add_argument('-f', '--filename', required=True, dest='filename',
-                        help='file name of matrix, without file extension [string]')
+    parser.add_argument('-g', '--numberOfGenes', required=True, dest='genes',
+                        help='number of genes in the network [positive int]')
+    parser.add_argument('-i', '--numberOfInteractions', required=True, dest='interactions',
+                        help='number of interactions in network or connected or repressilator [nonnegative int, \'C\', or \'R\']')
     parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
+                        help='simulation time in hours [positive int]')
+    parser.add_argument('-s', '--seed', required=True, dest='seed',
+                        help='seed for random number generator [positive int]')
+    parser.add_argument('-n', '--newHourtime', required=True, dest='newhourtime',
                         help='simulation time of rerun in hours [positive int]')
+
     args = parser.parse_args()
-    matrix = str(args.filename)
+    genes = int(args.genes)
+    interactions = str(args.interactions)
     hourtime = int(args.hourtime)
-    filename = matrix.replace('matrix_', '')
-    new_filename = re.sub('hours_' + r'([\d]+)', 'hours_{}'.format(hourtime), filename)
-    seed = int(re.findall('seed_' + r'([\d]+)', filename)[0].replace('seed_', ''))
+    seed = int(args.seed)
+    new_hourtime = int(args.newhourtime)
+
+    filename = 'genes_{}_interactions_{}_hours_{}_seed_{}'.format(genes, interactions, hourtime, seed)
+    new_filename = 'genes_{}_interactions_{}_hours_{}_seed_{}'.format(genes, interactions, new_hourtime, seed)
     random.seed(seed)
 
     graph, init, perturbation, post_exps = load_network(filename, hourtime)

@@ -8,7 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-import re
 import sys
 
 #----------------------------functions----------------------------#
@@ -82,19 +81,29 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='takens.py takes high-dimensional time series data generated and reduces the dimensions using PCA'
                                      ' and embeds a given principal components using the Takens embedding given the time of the simulation in hours,'
                                      ' the principal component to be embedded, and the time delay for the embedding.')
-    parser.add_argument('-f', '--filename', required=True, dest='filename',
-                        help='file name of the solution we want to embed, without file extension [string]')
+    parser.add_argument('-g', '--numberOfGenes', required=True, dest='genes',
+                        help='number of genes in the network [positive int]')
+    parser.add_argument('-i', '--numberOfInteractions', required=True, dest='interactions',
+                        help='number of interactions in network or connected or repressilator [nonnegative int, \'C\', or \'R\']')
+    parser.add_argument('-t', '--hourtime', required=True, dest='hourtime',
+                        help='simulation time in hours [positive int]')
+    parser.add_argument('-s', '--seed', required=True, dest='seed',
+                        help='seed for random number generator [positive int]')
     parser.add_argument('-e', '--embedPrincipalComponent', required=True, dest='principalcomponent',
                         help='principal component we want to apply the embedding [1, 2, or 3]')
     parser.add_argument('-d', '--delay', required=True, dest='delay',
                         help='delay [positive int]')
     args = parser.parse_args()
-    filename = str(args.filename).replace('solution_', '')
+    genes = int(args.genes)
+    interactions = str(args.interactions)
+    hourtime = int(args.hourtime)
+    seed = int(args.seed)
     PC = int(args.principalcomponent)
     delay = int(args.delay)
+
+    filename = 'genes_{}_interactions_{}_hours_{}_seed_{}'.format(genes, interactions, hourtime, seed)
     new_filename = filename + '_embedpc_{}_delaytau_{}'.format(PC, delay)
 
-    hourtime = int(re.findall('hours_' + r'([\d]+)', filename)[0].replace('hours_', ''))
     run_pca(2, filename)
     data = run_pca(3, filename)
     n = len(data)
@@ -102,7 +111,7 @@ if __name__ == '__main__':
     t = np.linspace(0, hourtime, n)
 
     embedded_data = takens_embedding(data, delay, PC-1)
-    np.savetxt("data/takens_data.txt", embedded_data, fmt='%1.4f')
+    np.savetxt("data/takensdata_{}.txt".format(new_filename), embedded_data, fmt='%1.4f')
 
     fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(15, 14))
     ax[0].plot(t, data)
@@ -113,10 +122,10 @@ if __name__ == '__main__':
     plt.clf()
     plt.close()
 
-    fig = plt.figure(figsize=(8, 8))
-    embedded_data = takens_embedding(data, delay, 3)
-    ax1 = fig.add_subplot(111, projection='3d')
-    ax1.plot(embedded_data[0, :], embedded_data[1, :], embedded_data[2, :])
-    ax1.set_title('3D Takens Embedding on 3D PCA')
-    plt.savefig('graphs/takens3d_{}.png'.format(new_filename))
-    plt.close()
+    # fig = plt.figure(figsize=(8, 8))
+    # embedded_data = takens_embedding(data, delay, 3)
+    # ax1 = fig.add_subplot(111, projection='3d')
+    # ax1.plot(embedded_data[0, :], embedded_data[1, :], embedded_data[2, :])
+    # ax1.set_title('3D Takens Embedding on 3D PCA')
+    # plt.savefig('graphs/takens3d_{}.png'.format(new_filename))
+    # plt.close()
